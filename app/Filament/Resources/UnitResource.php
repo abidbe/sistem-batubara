@@ -19,7 +19,6 @@ use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\Group;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -49,7 +48,6 @@ class UnitResource extends Resource
                 FileUpload::make('foto')
                     ->image()
                     ->directory('unit-images')
-                    ->required()
                     ->preserveFilenames()
                     ->visibility('public')
                     ->imageEditor()
@@ -62,8 +60,15 @@ class UnitResource extends Resource
                     ->required()
                     ->minValue(1900)
                     ->maxValue(date('Y')),
+                TextInput::make('hm')
+                    ->numeric()
+                    ->label('HM')
+                    ->default(0)
+                    ->minValue(0)
+                    ->maxValue(999999999999999999),
                 TextInput::make('kondisi')
                     ->required()
+                    ->columnSpanFull()
                     ->maxLength(255),
                 Textarea::make('keterangan')
                     ->maxLength(65535)
@@ -79,6 +84,9 @@ class UnitResource extends Resource
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('nama')
+                    ->sortable()
+                    ->searchable(),
+                TextColumn::make('hm')
                     ->sortable()
                     ->searchable(),
                 TextColumn::make('tahun')
@@ -154,10 +162,12 @@ class UnitResource extends Resource
                                     TextEntry::make('nama')
                                         ->label('Nama Unit')
                                         ->inlineLabel(),
-
                                     TextEntry::make('kondisi')
                                         ->label('Kondisi')
                                         ->inlineLabel(),
+                                    TextEntry::make('hm')
+                                        ->label('HM')
+                                        ->inlineLabel()
                                 ]),
                             ]),
 

@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('units', function (Blueprint $table) {
+        Schema::create('timesheets', function (Blueprint $table) {
             $table->id();
-            $table->string('unit_tipe');
-            $table->string('nama');
-            $table->string('foto')->nullable();
-            $table->year('tahun');
-            $table->string('kondisi');
-            $table->decimal('hm', 65, 2)->default(0);
+            $table->foreignId('unit_id')->constrained()->onDelete('cascade');
+            $table->date('tanggal');
+            $table->decimal('jam_kerja', 10, 2)->nullable();
+            $table->decimal('hm_awal', 10, 2)->nullable();
+            $table->decimal('hm_akhir', 10, 2)->nullable();
             $table->text('keterangan')->nullable();
             $table->timestamps();
         });
@@ -29,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('units');
+        Schema::dropIfExists('timesheets');
     }
 };

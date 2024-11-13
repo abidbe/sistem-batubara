@@ -49,6 +49,7 @@ class MinyakResource extends Resource
             ->schema([
                 Select::make('unit_id')
                     ->relationship('unit', 'nama')
+                    ->getOptionLabelFromRecordUsing(fn($record) => "{$record->unit_tipe} - {$record->nama}")
                     ->searchable()
                     ->preload()
                     ->label('Unit')

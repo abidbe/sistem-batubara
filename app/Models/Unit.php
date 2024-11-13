@@ -15,6 +15,7 @@ class Unit extends Model
         'foto',
         'tahun',
         'kondisi',
+        'hm',
         'keterangan'
     ];
 }
