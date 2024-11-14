@@ -21,6 +21,7 @@ use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Carbon\Carbon;
 
 class TimesheetResource extends Resource
 {
@@ -93,10 +94,10 @@ class TimesheetResource extends Resource
                     ->sortable(),
                 TextColumn::make('hm_awal')
                     ->label('HM Awal')
-                    ->numeric(2), // Langsung menggunakan value dari model
+                    ->numeric(2),
                 TextColumn::make('hm_akhir')
                     ->label('HM Akhir')
-                    ->numeric(2), // Langsung menggunakan value dari model
+                    ->numeric(2),
                 TextColumn::make('jam_kerja')
                     ->numeric(2)
                     ->sortable(),
@@ -104,7 +105,40 @@ class TimesheetResource extends Resource
                     ->searchable(),
             ])
             ->filters([
-                //
+                Tables\Filters\Filter::make('timesheet_filter')
+                    ->form([
+                        Select::make('unit_id')
+                            ->label('Unit')
+                            ->relationship('unit', 'nama')
+                            ->getOptionLabelFromRecordUsing(fn($record) => "{$record->unit_tipe} - {$record->nama}")
+                            ->required(),
+                        Select::make('month')
+                            ->label('Bulan & Tahun')
+                            ->options(function () {
+                                $months = [];
+                                for ($i = -6; $i <= 6; $i++) {
+                                    $date = now()->addMonths($i)->startOfMonth();
+                                    $key = $date->format('Y-m');
+                                    $label = $date->isoFormat('MMMM Y');
+                                    $months[$key] = $label;
+                                }
+                                return $months;
+                            })
+                            ->required()
+                            ->default(now()->format('Y-m')),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['unit_id'],
+                                fn(Builder $query, $unit_id): Builder => $query->where('unit_id', $unit_id)
+                            )
+                            ->when(
+                                $data['month'],
+                                fn(Builder $query, $month): Builder => $query->whereMonth('tanggal', Carbon::parse($month)->month)
+                                    ->whereYear('tanggal', Carbon::parse($month)->year)
+                            );
+                    }),
             ])
             ->actions([
                 ActionGroup::make([
@@ -123,9 +157,37 @@ class TimesheetResource extends Resource
             ])
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50, 100])
-            ->modifyQueryUsing(fn(Builder $query) => $query)
-            ->poll();;
+            ->modifyQueryUsing(function (Builder $query) {
+                $data = json_decode(request()->input('components.0.snapshot'), true);
+
+                if (!$data) {
+                    $query->whereRaw('1 = 0');
+                    return $query;
+                }
+
+                $tableFilters = $data['data']['tableFilters'] ?? [];
+
+                if (!empty($tableFilters) && isset($tableFilters[0]['timesheet_filter'][0])) {
+                    $filter = $tableFilters[0]['timesheet_filter'][0];
+                    if (!empty($filter['unit_id']) && !empty($filter['month'])) {
+                        return $query;
+                    }
+                }
+
+                $query->whereRaw('1 = 0');
+                return $query;
+            })
+            ->emptyStateHeading('Pilih filter terlebih dahulu')
+            ->emptyStateDescription('Silakan pilih Unit dan Periode untuk menampilkan data timesheet.')
+            ->emptyStateIcon('heroicon-o-funnel')
+            ->poll()
+            ->filtersTriggerAction(
+                fn(Tables\Actions\Action $action) => $action
+                    ->button()
+                    ->label('Filter Data'),
+            );
     }
+
 
     public static function getRelations(): array
     {
@@ -140,6 +202,7 @@ class TimesheetResource extends Resource
             'index' => Pages\ListTimesheets::route('/'),
         ];
     }
+
     public static function getNavigationSort(): ?int
     {
         return 3;
