@@ -95,6 +95,25 @@ class TimesheetResource extends Resource
 
     public static function table(Table $table): Table
     {
+        // Ambil parameter filter dari request
+        $data = json_decode(request()->input('components.0.snapshot'), true);
+        $tableFilters = $data['data']['tableFilters'] ?? [];
+
+        $query = Timesheet::query();
+
+        // Terapkan filter jika ada
+        if (!empty($tableFilters) && isset($tableFilters[0]['timesheet_filter'][0])) {
+            $filter = $tableFilters[0]['timesheet_filter'][0];
+            if (!empty($filter['unit_id']) && !empty($filter['month'])) {
+                $query->where('unit_id', $filter['unit_id'])
+                    ->whereMonth('tanggal', Carbon::parse($filter['month'])->month)
+                    ->whereYear('tanggal', Carbon::parse($filter['month'])->year);
+            }
+        }
+
+        // Hitung total jam kerja
+        $totalJamKerja = $query->sum('jam_kerja');
+
         return $table
             ->columns([
                 TextColumn::make('unit.nama')
@@ -106,12 +125,18 @@ class TimesheetResource extends Resource
                     ->sortable(),
                 TextColumn::make('hm_awal')
                     ->label('HM Awal')
-                    ->numeric(2),
+                    ->formatStateUsing(function ($state) {
+                        return is_numeric($state) ? rtrim(rtrim(number_format($state, 2, ',', '.'), '0'), ',') : $state;
+                    }),
                 TextColumn::make('hm_akhir')
                     ->label('HM Akhir')
-                    ->numeric(2),
+                    ->formatStateUsing(function ($state) {
+                        return is_numeric($state) ? rtrim(rtrim(number_format($state, 2, ',', '.'), '0'), ',') : $state;
+                    }),
                 TextColumn::make('jam_kerja')
-                    ->numeric(2)
+                    ->formatStateUsing(function ($state) {
+                        return is_numeric($state) ? rtrim(rtrim(number_format($state, 2, ',', '.'), '0'), ',') : $state;
+                    })
                     ->sortable(),
                 TextColumn::make('keterangan')
                     ->searchable(),
@@ -125,19 +150,24 @@ class TimesheetResource extends Resource
                             ->getOptionLabelFromRecordUsing(fn($record) => "{$record->unit_tipe} - {$record->nama}")
                             ->required(),
                         Select::make('month')
-                            ->label('Bulan & Tahun')
+                            ->label('Periode')
                             ->options(function () {
-                                $months = [];
-                                for ($i = -6; $i <= 6; $i++) {
-                                    $date = now()->addMonths($i)->startOfMonth();
-                                    $key = $date->format('Y-m');
-                                    $label = $date->isoFormat('MMMM Y');
-                                    $months[$key] = $label;
+                                $options = [];
+                                $startDate = now()->subMonths(120);
+                                $endDate = now()->addMonths(120);
+
+                                while ($startDate->lte($endDate)) {
+                                    $key = $startDate->format('Y-m');
+                                    $value = ucwords($startDate->translatedFormat('F Y'));
+                                    $options[$key] = $value;
+                                    $startDate->addMonth();
                                 }
-                                return $months;
+
+                                return $options;
                             })
-                            ->required()
-                            ->default(now()->format('Y-m')),
+                            ->default(now()->format('Y-m'))
+                            ->searchable()
+                            ->required(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
@@ -189,6 +219,9 @@ class TimesheetResource extends Resource
                 $query->whereRaw('1 = 0');
                 return $query;
             })
+            ->contentFooter(view('timesheet-stats', [
+                'totalJamKerja' => number_format($totalJamKerja, 2, '.', ''),
+            ]))
             ->emptyStateHeading('Pilih filter terlebih dahulu')
             ->emptyStateDescription('Silakan pilih Unit dan Periode untuk menampilkan data timesheet.')
             ->emptyStateIcon('heroicon-o-funnel')

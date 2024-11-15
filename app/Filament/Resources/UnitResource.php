@@ -88,7 +88,10 @@ class UnitResource extends Resource
                     ->searchable(),
                 TextColumn::make('hm')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->formatStateUsing(function ($state) {
+                        return is_numeric($state) ? rtrim(rtrim(number_format($state, 2, ',', '.'), '0'), ',') : $state;
+                    }),
                 TextColumn::make('tahun')
                     ->sortable(),
             ])
@@ -129,7 +132,7 @@ class UnitResource extends Resource
                             ->extraAttributes([
                                 'style' => '
                                 display: block;
-                                max-width: 800px; 
+                                max-width: 800px;
                                 max-height: 500px;
                                 width: 100%;
                                 height: auto;
@@ -188,6 +191,7 @@ class UnitResource extends Resource
             'index' => Pages\ListUnits::route('/'),
         ];
     }
+
     public static function getNavigationSort(): ?int
     {
         return 1;
