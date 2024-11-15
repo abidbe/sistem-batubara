@@ -22,6 +22,7 @@ use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Carbon\Carbon;
+use Illuminate\Validation\Rule;
 
 class TimesheetResource extends Resource
 {
@@ -52,7 +53,18 @@ class TimesheetResource extends Resource
                     }),
                 DatePicker::make('tanggal')
                     ->required()
-                    ->default(now()),
+                    ->default(now())
+                    ->rules([
+                        'required',
+                        function ($get) {
+                            return Rule::unique('timesheets', 'tanggal')
+                                ->where('unit_id', $get('unit_id'))
+                                ->ignore(request()->route('record'));
+                        }
+                    ])
+                    ->validationMessages([
+                        'unique' => 'Data timesheet untuk unit dan tanggal ini sudah ada.'
+                    ]),
                 TextInput::make('jam_kerja')
                     ->numeric()
                     ->required()
